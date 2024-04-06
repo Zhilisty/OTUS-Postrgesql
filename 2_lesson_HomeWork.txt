@@ -1,0 +1,71 @@
+# Установить PostgreSQL14:
+- sudo apt -y install postgresql-14
+
+# Проверить статус запуска PostgreSQL14:
+- systemctl status postgresql 
+
+# Проверить устанровленную верси PostgreSQL:
+- sudo -u postgres psql -c "SELECT version();"
+
+# Зайти под пользователем postgres:
+- sudo -i -u postgres
+
+# Подключиться к экземпляру PostgreSQL:
+- psql
+
+# Отключить autocommit:
+- \SET :AUTOCOMMIT  OFF
+
+# Проверить AUTOCOMMIT OFF:
+- \echo :AUTOCOMMIT
+
+# Создать базу данных:
+- CREATE DATABASE otus_pgsql;
+
+# Подключиться к базе данных:
+- \с otus_pgsql;
+
+# В первой сессии новую таблицу и наполнить ее данными:
+- create table persons(id serial, first_name text, second_name text); 
+- insert into persons(first_name, second_name) values('ivan', 'ivanov'); 
+- insert into persons(first_name, second_name) values('petr', 'petrov'); 
+- commit;
+
+# Посмотреть текущий уровень изоляции:  
+- SHOW TRANSACTION ISOLATION LEVEL;
+
+# Вывод:
+ transaction_isolation
+-----------------------
+ read committed
+(1 row)
+
+# Начать новую транзакцию в обоих сессиях с дефолтным (не меняя) уровнем изоляции
+## В первой сессии добавить новую запись:
+- insert into persons(first_name, second_name) values('sergey', sergeev');
+### Изначально вывод показал информацию из-за того, неправильно отключил AUTOCOMMIT. После правильного отключения транзакции без подтверждения во второй сессии перестали отображаться.
+- insert into persons(first_name, second_name) values('andrey', 'andreev');
+#### Без COMMIT в первой сессии данные не обновляются, при попытке завершить во второй сессии транзакцию начатую в первой сессии получаем ошибку "WARNING:  there is no transaction in progress" (если я правимльно понял задание).
+
+# Yачать новые но уже repeatable read транзации:
+## При использовании команды set transaction isolation level repeatable read; без begin; получаем следующую ошибку "WARNING:  SET TRANSACTION can only be used in transaction blocks". Как я понял параметр transaction isolation level меняется на значение по умолчанию исключительно в конфигурационных файлах.
+
+# В первой сессии добавить новую запись:
+- insert into persons(first_name, second_name) values('sveta', 'svetova');
+## Неправильно указанной комманды set transaction isolation level repeatable read; следующая транзакция выполнилась в режиме изоляции  read committed.
+### Далее выполнял следующие наборы команд:
+- begin transaction isolation level repeatable read;
+- SHOW TRANSACTION ISOLATION LEVEL;
+#### Получил вывод информации по уровню изоляции:
+ transaction_isolation
+-----------------------
+ repeatable read
+(1 row)
+insert into persons(first_name, second_name) values('kristina', 'kristinova');
+Информация до COMMIT не появилась во второй сессии.
+COMMIT;
+
+# Как я понял в repeatable read можно увидеть первую транзакцию в другой сессии без commit, так как за время поиска в этом режжиме данные могут быть измменены другими транзакциями, но траанзакция в режиме Repeatable Read будет ожидать фиксирования или отката первой изменяющей данные транзакции.
+
+##### "сделать select from persons во второй сессии. Видите ли вы новую запись и если да то почему? Завершить вторую транзакцию. Сделать select * from persons во второй сессии"
+##### Вот этой части задания не понял вообще, она дублирует предыдущее задание.
