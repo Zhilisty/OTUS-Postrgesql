@@ -1,0 +1,197 @@
+# Установить пакеты необходимые для дальнейшей установки и настройки:
+-- sudo apt -y install gnupg2 wget nano net-tools
+
+# Добавить необходимый репозиторий:
+-- sudo sh -c 'echo "deb http://apt.postgresql.org/pub/repos/apt $(lsb_release -cs)-pgdg main" > /etc/apt/sources.list.d/pgdg.list'
+
+# Импортировать ключ GPG для репозитория:
+-- sudo wget -qO /etc/apt/trusted.gpg.d/pgdg.asc https://www.postgresql.org/media/keys/ACCC4CF8.asc
+
+# Обновить список пакетов apt:
+-- sudo apt -y update
+
+# Установить PostgreSQL15:
+-- sudo apt -y install postgresql-15
+
+# Проверить статус запуска PostgreSQL15:
+-- systemctl status postgresql
+-- sudo -u postgres pg_lsclusters
+
+## Вывод:
+- Apr 20 11:25:20 otus systemd[1]: Starting PostgreSQL RDBMS...
+- Apr 20 11:25:20 otus systemd[1]: Finished PostgreSQL RDBMS.
+- otus@otus:~$ sudo -u postgres pg_lsclusters
+- Ver Cluster Port Status Owner    Data directory              Log file
+- 15  main    5432 online postgres /var/lib/postgresql/15/main /var/log/postgresql/postgresql-15-main.log
+
+
+# Проверить устанровленную верси PostgreSQL:
+-- sudo -u postgres psql -c "SELECT version();"
+
+## Вывод:
+                                                              version
+-----------------------------------------------------------------------------------------------------------------------------------
+ PostgreSQL 15.6 (Ubuntu 15.6-1.pgdg22.04+1) on x86_64-pc-linux-gnu, compiled by gcc (Ubuntu 11.4.0-1ubuntu1~22.04) 11.4.0, 64-bit
+(1 row)
+
+# Зайти под пользователем postgres:
+-- sudo -i -u postgres
+
+# Подключиться к экземпляру PostgreSQL:
+-- psql
+
+# Создать базу данных:
+-- CREATE DATABASE otus_pgsql;
+
+# Подключиться к базе данных:
+-- \с otus_pgsql;
+
+# Создать таблицу и наполнить ее произвольными данными:
+-- create table OTUS(id serial, TEST text, Privet text); 
+-- insert into OTUS(TEST, Privet) values('123', '321');  
+
+# Проверить содержимое ттаблицы:
+-- postgres=# select * from otus;
+## Вывод:
+ id | test | privet
+----+------+--------
+  1 | 123  | 321
+(1 row)
+
+# Остановить службу:
+-- sudo systemctl stop postgresql@15-main
+## Проверить что служба остановлена:
+otus@otus:~$ sudo systemctl status postgresql@15-main
+### Вывод:
+   postgresql@15-main.service - PostgreSQL Cluster 15-main
+     Loaded: loaded (/lib/systemd/system/postgresql@.service; enabled-runtime; vendor preset: enabled)
+     Active: inactive (dead) since Sat 2024-04-20 12:38:10 UTC; 10s ago
+    Process: 876 ExecStart=/usr/bin/pg_ctlcluster --skip-systemctl-redirect 15-main start (code=exited, status=0/SUCCESS)
+    Process: 1343 ExecStop=/usr/bin/pg_ctlcluster --skip-systemctl-redirect -m fast 15-main stop (code=exited, status=0/SUCCESS)
+   Main PID: 959 (code=exited, status=0/SUCCESS)
+        CPU: 619ms
+
+Apr 20 12:25:08 otus systemd[1]: Starting PostgreSQL Cluster 15-main...
+Apr 20 12:25:10 otus systemd[1]: Started PostgreSQL Cluster 15-main.
+Apr 20 12:38:09 otus systemd[1]: Stopping PostgreSQL Cluster 15-main...
+Apr 20 12:38:10 otus systemd[1]: postgresql@15-main.service: Deactivated successfully.
+Apr 20 12:38:10 otus systemd[1]: Stopped PostgreSQL Cluster 15-main.
+
+# Посмотреть диски и разделы:
+-- otus@otus:~$ lsblk
+## Вывод:
+NAME                      MAJ:MIN RM  SIZE RO TYPE MOUNTPOINTS
+loop0                       7:0    0 63.9M  1 loop /snap/core20/2105
+loop1                       7:1    0 40.4M  1 loop /snap/snapd/20671
+loop2                       7:2    0   87M  1 loop /snap/lxd/27037
+sda                         8:0    0   20G  0 disk
+├─sda1                      8:1    0    1M  0 part
+├─sda2                      8:2    0  1.8G  0 part /boot
+└─sda3                      8:3    0 18.2G  0 part
+  └─ubuntu--vg-ubuntu--lv 253:0    0   10G  0 lvm  /
+sdb                         8:16   0   10G  0 disk
+sr0                        11:0    1 1024M  0 rom
+
+# Создаем разделы и размечаем диск:
+otus@otus:~$ sudo parted /dev/sdb
+[sudo] password for otus:
+GNU Parted 3.4
+Using /dev/sdb
+Welcome to GNU Parted! Type 'help' to view a list of commands.
+(parted) mklabel gpt
+(parted) print
+Model: VMware, VMware Virtual S (scsi)
+Disk /dev/sdb: 10.7GB
+Sector size (logical/physical): 512B/512B
+Partition Table: gpt
+Disk Flags:
+
+-- mkpart primary ext4 0% 100%
+
+otus@otus:~$ sudo mkfs.ext4 /dev/sdb1
+mke2fs 1.46.5 (30-Dec-2021)
+Creating filesystem with 2620928 4k blocks and 655360 inodes
+Filesystem UUID: 6dfe25ea-26d8-4904-be10-f0edbbd861c1
+Superblock backups stored on blocks:
+        32768, 98304, 163840, 229376, 294912, 819200, 884736, 1605632
+
+Allocating group tables: done
+Writing inode tables: done
+Creating journal (16384 blocks): done
+Writing superblocks and filesystem accounting information: done
+
+## Проверяем что диск примонтирован и раздел создан:
+otus@otus:~$ lsblk
+NAME                      MAJ:MIN RM  SIZE RO TYPE MOUNTPOINTS
+loop0                       7:0    0 63.9M  1 loop /snap/core20/2105
+loop1                       7:1    0   87M  1 loop /snap/lxd/27037
+loop2                       7:2    0 40.4M  1 loop /snap/snapd/20671
+sda                         8:0    0   20G  0 disk
+├─sda1                      8:1    0    1M  0 part
+├─sda2                      8:2    0  1.8G  0 part /boot
+└─sda3                      8:3    0 18.2G  0 part
+  └─ubuntu--vg-ubuntu--lv 253:0    0   10G  0 lvm  /
+sdb                         8:16   0   10G  0 disk
+└─sdb1                      8:17   0   10G  0 part
+sr0                        11:0    1 1024M  0 rom
+
+
+# Создаем новую директорию, назначаем владельца и переносим в нее файлы postgre:
+sudo mkdir -p /mnt/data
+
+chown -R postgres:postgres /mnt/data/
+
+sudo mv /var/lib/postgresql/15 /mnt/data
+
+# Пыфтаемся запустить службу:
+otus@otus:~$ sudo systemctl start postgresql@15-main
+Job for postgresql@15-main.service failed because the service did not take the steps required by its unit configuration.
+See "systemctl status postgresql@15-main.service" and "journalctl -xeu postgresql@15-main.service" for details.
+
+# Служба не запустилась потому что posrgres ссылается на старый каталог данных.
+
+# Редактируем конфигурационные файлы postgres:
+-- sudo nano /etc/postgresql/15/main/postgresql.conf
+-- Меняем data_directory = '/var/lib/postgresql/15/main' на data_directory = '/mnt/data/15/main/'
+
+# Запускаем службу:
+sudo systemctl start postgresql@15-main
+
+## Вывод:
+otus@otus:~$ sudo systemctl status postgresql@15-main
+● postgresql@15-main.service - PostgreSQL Cluster 15-main
+     Loaded: loaded (/lib/systemd/system/postgresql@.service; enabled-runtime; vendor preset: enabled)
+     Active: active (running) since Sat 2024-04-20 12:58:40 UTC; 31s ago
+    Process: 1429 ExecStart=/usr/bin/pg_ctlcluster --skip-systemctl-redirect 15-main start (code=exited, status=0/SUCCESS)
+   Main PID: 1434 (postgres)
+      Tasks: 6 (limit: 4515)
+     Memory: 18.7M
+        CPU: 140ms
+     CGroup: /system.slice/system-postgresql.slice/postgresql@15-main.service
+             ├─1434 /usr/lib/postgresql/15/bin/postgres -D /mnt/data/15/main -c config_file=/etc/postgresql/15/main/postgresql.conf
+             ├─1435 "postgres: 15/main: checkpointer " "" "" "" "" "" "" "" "" "" "" "" "" "" "" "" "" "" "" "" "" "" "" "" "" "" "" "" "" "" "" "" "" "" "">
+             ├─1436 "postgres: 15/main: background writer " "" "" "" "" "" "" "" "" "" "" "" "" "" "" "" "" "" "" "" "" "" "" "" "" "" "" "" "" "" "" "" "" >
+             ├─1438 "postgres: 15/main: walwriter " "" "" "" "" "" "" "" "" "" "" "" "" "" "" "" "" "" "" "" "" "" "" "" "" "" "" "" "" "" "" "" "" "" "" "">
+             ├─1439 "postgres: 15/main: autovacuum launcher " "" "" "" "" "" "" "" "" "" "" "" "" "" "" "" "" "" "" "" "" "" "" "" "" "" "" "" "" "" "" "" ">
+             └─1440 "postgres: 15/main: logical replication launcher " "" "" "" "" "" "" "" "" "" "" "" "" "" "" "" "" "" "" "" "" "" "" "" "" "" "" "" "" ">
+
+Apr 20 12:58:38 otus systemd[1]: Starting PostgreSQL Cluster 15-main...
+Apr 20 12:58:40 otus systemd[1]: Started PostgreSQL Cluster 15-main.
+
+otus@otus:~$ sudo -i -u postgres
+postgres@otus:~$ psql
+psql (15.6 (Ubuntu 15.6-1.pgdg22.04+1))
+Type "help" for help.
+
+postgres=# select * from otus;
+ id | test | privet
+----+------+--------
+  1 | 123  | 321
+(1 row)
+
+##### В итоге все данные перенесены, содержимое базы осталось без изменений.
+
+
+
+
+
